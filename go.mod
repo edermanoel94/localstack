@@ -1,4 +1,4 @@
-module github.com/edermanoel94/localstack-api
+module github.com/edermanoel94/localstack
 
 go 1.14
 
