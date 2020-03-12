@@ -21,7 +21,7 @@ type LocalStack struct {
 
 const abstractionIp = "0.0.0.0"
 
-func NewLocalStack() (*LocalStack, error) {
+func New() (*LocalStack, error) {
 
 	dockerClient, err := client.NewEnvClient()
 
@@ -217,6 +217,11 @@ func (l *LocalStack) ContainerExists(ctx context.Context) (bool, error) {
 	for _, cont := range containers {
 
 		if strings.EqualFold(cont.Names[0], "/localstack") {
+
+			if err := save(cont.ID); err != nil {
+				return false, err
+			}
+
 			return true, nil
 		}
 	}
@@ -264,7 +269,7 @@ func load() (string, error) {
 
 		if errors.Is(err, os.ErrNotExist) {
 
-			_, err := NewLocalStack()
+			_, err := New()
 
 			if err != nil {
 				return "", err
