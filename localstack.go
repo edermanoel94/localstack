@@ -34,6 +34,7 @@ func New() (*LocalStack, error) {
 
 func (l *LocalStack) Create(ctx context.Context) error {
 
+	// TODO: Create a way to do more services
 	hostConfig := &container.HostConfig{
 		PortBindings: map[nat.Port][]nat.PortBinding{
 			"8080/tcp": {
@@ -157,11 +158,13 @@ func (l *LocalStack) Run(ctx context.Context) error {
 			if err := l.Pull(ctx); err != nil {
 				return err
 			}
-
-			if err := l.Create(ctx); err != nil {
-				return err
-			}
 		}
+
+		if err := l.Create(ctx); err != nil {
+			return err
+		}
+
+		return l.Start(ctx)
 	}
 
 	isRunning, err := l.IsRunning(ctx)
