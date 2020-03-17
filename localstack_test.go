@@ -2,14 +2,14 @@ package localstack_test
 
 import (
 	"context"
-	"github.com/edermanoel94/localstack-api"
+	"github.com/edermanoel94/localstack"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
-func TestNewLocalStack(t *testing.T) {
+func TestNew(t *testing.T) {
 
-	localStack, err := localstack.NewLocalStack()
+	localStack, err := localstack.New()
 
 	if err != nil {
 		t.Fatal(err)
@@ -20,7 +20,7 @@ func TestNewLocalStack(t *testing.T) {
 
 func TestLocalStack_Pull(t *testing.T) {
 
-	stack, err := localstack.NewLocalStack()
+	stack, err := localstack.New()
 
 	if err != nil {
 		t.Fatal(err)
@@ -37,7 +37,7 @@ func TestLocalStack_Pull(t *testing.T) {
 
 func TestLocalStack_Create(t *testing.T) {
 
-	stack, err := localstack.NewLocalStack()
+	stack, err := localstack.New()
 
 	if err != nil {
 		t.Fatal(err)
@@ -54,7 +54,7 @@ func TestLocalStack_Create(t *testing.T) {
 
 func TestLocalStack_Start(t *testing.T) {
 
-	stack, err := localstack.NewLocalStack()
+	stack, err := localstack.New()
 
 	if err != nil {
 		t.Fatal(err)
@@ -71,7 +71,7 @@ func TestLocalStack_Start(t *testing.T) {
 
 func TestLocalStack_Stop(t *testing.T) {
 
-	stack, err := localstack.NewLocalStack()
+	stack, err := localstack.New()
 
 	if err != nil {
 		t.Fatal(err)
@@ -88,7 +88,7 @@ func TestLocalStack_Stop(t *testing.T) {
 
 func TestLocalStack_Remove(t *testing.T) {
 
-	stack, err := localstack.NewLocalStack()
+	stack, err := localstack.New()
 
 	if err != nil {
 		t.Fatal(err)
@@ -103,9 +103,9 @@ func TestLocalStack_Remove(t *testing.T) {
 	}
 }
 
-func TestLocalStack_LocalStackContainerExist(t *testing.T) {
+func TestLocalStack_ContainerExists(t *testing.T) {
 
-	stack, err := localstack.NewLocalStack()
+	stack, err := localstack.New()
 
 	if err != nil {
 		t.Fatal(err)
@@ -124,7 +124,7 @@ func TestLocalStack_LocalStackContainerExist(t *testing.T) {
 
 func TestLocalStack_Run(t *testing.T) {
 
-	stack, err := localstack.NewLocalStack()
+	stack, err := localstack.New()
 
 	if err != nil {
 		t.Fatal(err)
@@ -142,7 +142,7 @@ func TestLocalStack_Run(t *testing.T) {
 
 func TestLocalStack_IsRunning(t *testing.T) {
 
-	stack, err := localstack.NewLocalStack()
+	stack, err := localstack.New()
 
 	if err != nil {
 		t.Fatal(err)
@@ -160,5 +160,5 @@ func TestLocalStack_IsRunning(t *testing.T) {
 }
 
 func TestLocalStack_Logs(t *testing.T) {
-
+	// TODO: add test for logs
 }
