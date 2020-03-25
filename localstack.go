@@ -2,7 +2,6 @@ package localstack
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -40,10 +39,6 @@ type LocalStack struct {
 }
 
 const abstractionIp = "0.0.0.0"
-
-func mergeWithTCP(port nat.Port) nat.Port {
-	return nat.Port(fmt.Sprintf("%s/tcp", port))
-}
 
 func New(services ...Service) (*LocalStack, error) {
 
@@ -104,7 +99,7 @@ func (l *LocalStack) start(ctx context.Context) error {
 		return err
 	}
 
-	// TODO: workaround
+	// TODO: this is a workaround
 	fmt.Println("Waiting for services stay up!!")
 	time.Sleep(30 * time.Second)
 
@@ -224,7 +219,7 @@ func (l *LocalStack) mountServicesEnv() string {
 	suffix := ","
 
 	if strings.HasSuffix(result, suffix) {
-		result = result[:len(result)-len(suffix)]
+		return result[:len(result)-len(suffix)]
 	}
 
 	return result
@@ -237,6 +232,7 @@ func (l *LocalStack) mountingExposedPorts() nat.PortSet {
 	for _, service := range l.services {
 		exposedPorts[mergeWithTCP(service.NatPort())] = struct{}{}
 	}
+
 	return exposedPorts
 }
 
@@ -337,19 +333,12 @@ func load() (string, error) {
 	file, err := ioutil.ReadFile("localstack.out")
 
 	if err != nil {
-
-		if errors.Is(err, os.ErrNotExist) {
-
-			_, err := New()
-
-			if err != nil {
-				return "", err
-			}
-
-		}
-
 		return "", err
 	}
 
 	return string(file), nil
+}
+
+func mergeWithTCP(port nat.Port) nat.Port {
+	return nat.Port(fmt.Sprintf("%s/tcp", port))
 }
