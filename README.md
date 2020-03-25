@@ -61,6 +61,7 @@ $ go get github.com/edermanoel94/localstack@latest
 - [ ] Add more services
 - [ ] Better costumization on container
 - [ ] Create helper for aws-sdk
+- [ ] Remove sleep and check services healthy
 
 ## Contributing
 
