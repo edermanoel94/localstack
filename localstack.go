@@ -18,11 +18,16 @@ type Service string
 
 // TODO: add more services
 const (
+
+	// SERVICE = "<name>/port", name of service listed on aws cli
+
 	S3    Service = "s3/4572"
 	SNS           = "sns/4575"
 	SQS           = "sqs/4576"
 	Admin         = "admin/8080"
 )
+
+var all = []Service{S3, SNS, SQS, Admin}
 
 func (s Service) Name() string {
 	return strings.Split(string(s), "/")[0]
@@ -46,6 +51,10 @@ func New(services ...Service) (*LocalStack, error) {
 
 	if err != nil {
 		return nil, err
+	}
+
+	if len(services) == 0 {
+		services = all
 	}
 
 	return &LocalStack{
@@ -260,7 +269,7 @@ func (l *LocalStack) Stop(ctx context.Context, timeout *time.Duration) error {
 	return l.client.ContainerStop(ctx, containerId, timeout)
 }
 
-func (l *LocalStack) Remove(ctx context.Context, removeVolumes bool) error {
+func (l *LocalStack) Remove(ctx context.Context, removeLinks, removeVolumes bool) error {
 
 	containerId, err := load()
 
@@ -270,6 +279,7 @@ func (l *LocalStack) Remove(ctx context.Context, removeVolumes bool) error {
 
 	return l.client.ContainerRemove(ctx, containerId, types.ContainerRemoveOptions{
 		Force:         true,
+		RemoveLinks:   removeLinks,
 		RemoveVolumes: removeVolumes,
 	})
 }
