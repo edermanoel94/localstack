@@ -4,12 +4,13 @@ import (
 	"context"
 	"github.com/edermanoel94/localstack"
 	"github.com/stretchr/testify/assert"
+	"os"
 	"testing"
 )
 
 func TestNew(t *testing.T) {
 
-	localStack, err := localstack.New()
+	localStack, err := localstack.New(false)
 
 	if err != nil {
 		t.Fatal(err)
@@ -20,15 +21,39 @@ func TestNew(t *testing.T) {
 
 func TestLocalStack_Run(t *testing.T) {
 
-	stack, err := localstack.New(localstack.S3, localstack.SNS)
+	t.Run("should dumping inspected container with make inspect enabled,", func(t *testing.T) {
 
-	if err != nil {
-		t.Fatal(err)
-	}
+		t.Cleanup(func() {
+			os.Remove("dumping_inspected.json")
+		})
 
-	ctx := context.Background()
+		stack, err := localstack.New(true)
 
-	err = stack.Run(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	assert.Nil(t, err)
+		ctx := context.Background()
+
+		err = stack.Run(ctx)
+
+		assert.Nil(t, err)
+		assert.FileExists(t, "dumping_inspected.json")
+	})
+
+	t.Run("should not dumping inspected container with make inspect disabled,", func(t *testing.T) {
+
+		stack, err := localstack.New(false)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		ctx := context.Background()
+
+		err = stack.Run(ctx)
+
+		assert.Nil(t, err)
+		assert.NoFileExists(t, "dumping_inspected.json")
+	})
 }

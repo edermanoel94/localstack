@@ -1,7 +1,7 @@
 # Localstack
 
 A package which make easy initialize for localstack and debug your application with your best IDE, 
-choosen services and without setup any Dockerfile to run.
+choosen services and without setup any Dockerfile to run. This working with network_mode=host
 
 ## Example
 
@@ -17,8 +17,9 @@ import (
 
 func before() {
     
-    // pass services which u will use
-    localStack, err := localstack.New(localstack.S3, localstack.SQS)
+    // first parameter is to create a json file of localstack docker configurations and 
+	// second parameter is service that you want to use, if not pass will get all services
+    localStack, err := localstack.New(false, localstack.S3, localstack.SNS)
 
 	if err != nil {
 		// treat your error here
@@ -31,6 +32,8 @@ func before() {
 	if err != nil {
 		// treat your error here
 	}
+    
+    // you can return the method Stop or Remove to put on defer and stop execution.
 }
 
 func TestSomeHandler(t *testing.T) {
@@ -61,6 +64,7 @@ $ go get github.com/edermanoel94/localstack@latest
 - [ ] Add more services
 - [ ] Better costumization on container
 - [ ] Create helper for aws-sdk
+- [ ] Working with all network_modes
 - [ ] Remove sleep and check services healthy
 
 ## Contributing

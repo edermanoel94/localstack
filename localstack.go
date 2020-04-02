@@ -2,6 +2,7 @@ package localstack
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -10,42 +11,22 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 )
 
-type Service string
-
-// TODO: add more services
-const (
-
-	// SERVICE = "<name>/port", name of service listed on aws cli
-
-	S3    Service = "s3/4572"
-	SNS           = "sns/4575"
-	SQS           = "sqs/4576"
-	Admin         = "admin/8080"
-)
-
-var all = []Service{S3, SNS, SQS, Admin}
-
-func (s Service) Name() string {
-	return strings.Split(string(s), "/")[0]
-}
-
-func (s Service) NatPort() nat.Port {
-	return nat.Port(strings.Split(string(s), "/")[1])
-}
-
 type LocalStack struct {
-	client *client.Client
-
+	client   *client.Client
 	services []Service
+
+	// dumpingContainer dump all config in a json file
+	dumpingContainer bool
 }
 
-const abstractionIp = "0.0.0.0"
+const abstractIP = "0.0.0.0"
 
-func New(services ...Service) (*LocalStack, error) {
+func New(makeInspect bool, services ...Service) (*LocalStack, error) {
 
 	dockerClient, err := client.NewEnvClient()
 
@@ -58,22 +39,23 @@ func New(services ...Service) (*LocalStack, error) {
 	}
 
 	return &LocalStack{
-		client:   dockerClient,
-		services: services,
+		client:           dockerClient,
+		services:         services,
+		dumpingContainer: makeInspect,
 	}, nil
 }
 
 func (l *LocalStack) create(ctx context.Context) error {
 
-	portBindings := l.mountingPortBindings()
+	portBindings := l.mountPortBindings()
 
-	hostConfig := &container.HostConfig{
-		PortBindings: portBindings,
-	}
+	hostConfig := l.mountHostConfig(portBindings)
 
 	servicesEnv := l.mountServicesEnv()
 
-	exposedPorts := l.mountingExposedPorts()
+	exposedPorts := l.mountExposedPorts()
+
+	volumes := l.mountVolumes()
 
 	cont, err := l.client.ContainerCreate(ctx, &container.Config{
 		Tty:          true,
@@ -83,10 +65,7 @@ func (l *LocalStack) create(ctx context.Context) error {
 			"DEFAULT_REGION=us-east-1", "DATA_DIR=/tmp/localstack/data", "USE_SSL=false"},
 		Image:        "localstack/localstack",
 		ExposedPorts: exposedPorts,
-		Volumes: map[string]struct{}{
-			"/var/run/docker.sock:/var/run/docker.sock": {},
-			"/private${TMPDIR}:/tmp/localstack":         {},
-		},
+		Volumes:      volumes,
 	}, hostConfig, nil, "localstack")
 
 	if err != nil {
@@ -159,13 +138,7 @@ func (l *LocalStack) containerExists(ctx context.Context) (bool, error) {
 
 func (l *LocalStack) isRunning(ctx context.Context) (bool, error) {
 
-	containerId, err := load()
-
-	if err != nil {
-		return false, err
-	}
-
-	containerInspected, err := l.client.ContainerInspect(ctx, containerId)
+	containerInspected, err := l.inspect(ctx)
 
 	if err != nil {
 		return false, err
@@ -176,6 +149,23 @@ func (l *LocalStack) isRunning(ctx context.Context) (bool, error) {
 	}
 
 	return true, nil
+}
+
+func (l *LocalStack) inspect(ctx context.Context) (types.ContainerJSON, error) {
+
+	containerId, err := load()
+
+	if err != nil {
+		return types.ContainerJSON{}, err
+	}
+
+	containerInspected, err := l.client.ContainerInspect(ctx, containerId)
+
+	if err != nil {
+		return types.ContainerJSON{}, err
+	}
+
+	return containerInspected, nil
 }
 
 func (l *LocalStack) logs(ctx context.Context) error {
@@ -207,6 +197,39 @@ func (l *LocalStack) logs(ctx context.Context) error {
 	return nil
 }
 
+func (l *LocalStack) dumpingInspectedContainer(ctx context.Context) error {
+
+	containerJson, err := l.inspect(ctx)
+
+	if err != nil {
+		return err
+	}
+
+	containerJsonBytes, err := json.Marshal(&containerJson)
+
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile("dumping_inspected.json", containerJsonBytes, os.ModePerm)
+}
+
+func (l *LocalStack) mountHostConfig(portBindings map[nat.Port][]nat.PortBinding) *container.HostConfig {
+
+	networkMode := "default"
+
+	if runtime.GOOS == "linux" {
+		networkMode = "host"
+	}
+
+	hostConfig := &container.HostConfig{
+		PortBindings: portBindings,
+		NetworkMode:  container.NetworkMode(networkMode),
+	}
+
+	return hostConfig
+}
+
 func (l *LocalStack) mountServicesEnv() string {
 
 	services := strings.Builder{}
@@ -234,28 +257,41 @@ func (l *LocalStack) mountServicesEnv() string {
 	return result
 }
 
-func (l *LocalStack) mountingExposedPorts() nat.PortSet {
+func (l *LocalStack) mountExposedPorts() nat.PortSet {
 
 	exposedPorts := make(nat.PortSet)
 
 	for _, service := range l.services {
-		exposedPorts[mergeWithTCP(service.NatPort())] = struct{}{}
+		exposedPorts[concatWithTCP(service.NatPort())] = struct{}{}
 	}
 
 	return exposedPorts
 }
 
-func (l *LocalStack) mountingPortBindings() map[nat.Port][]nat.PortBinding {
+func (l *LocalStack) mountPortBindings() map[nat.Port][]nat.PortBinding {
 
 	portBindings := make(map[nat.Port][]nat.PortBinding)
 
 	for _, service := range l.services {
-		portBindings[mergeWithTCP(service.NatPort())] = []nat.PortBinding{
-			{HostIP: abstractionIp, HostPort: service.NatPort().Port()},
+		portBindings[concatWithTCP(service.NatPort())] = []nat.PortBinding{
+			{HostIP: abstractIP, HostPort: service.NatPort().Port()},
 		}
 	}
 
 	return portBindings
+}
+
+func (l *LocalStack) mountVolumes() map[string]struct{} {
+
+	volumes := make(map[string]struct{})
+
+	volumes["/var/run/docker.sock:/var/run/docker.sock"] = struct{}{}
+
+	if runtime.GOOS == "darwin" {
+		volumes["/private${TMPDIR}:/tmp/localstack"] = struct{}{}
+	}
+
+	return volumes
 }
 
 func (l *LocalStack) Stop(ctx context.Context, timeout *time.Duration) error {
@@ -295,8 +331,10 @@ func (l *LocalStack) Run(ctx context.Context) error {
 	// TODO: create a method
 	if !exist {
 
+		// try to create container if have a image
 		err := l.create(ctx)
 
+		// if not have image, download and then try create container again and if successful, start!
 		if !client.IsErrImageNotFound(err) {
 
 			return err
@@ -307,6 +345,7 @@ func (l *LocalStack) Run(ctx context.Context) error {
 			}
 		}
 
+		// retry to create
 		if err := l.create(ctx); err != nil {
 			return err
 		}
@@ -318,6 +357,12 @@ func (l *LocalStack) Run(ctx context.Context) error {
 
 	if err != nil {
 		return err
+	}
+
+	if l.dumpingContainer {
+		if err := l.dumpingInspectedContainer(ctx); err != nil {
+			return err
+		}
 	}
 
 	if !isRunning {
@@ -340,6 +385,7 @@ func save(containerId string) error {
 
 func load() (string, error) {
 
+	// TODO: check if delete is gonna be a problem
 	file, err := ioutil.ReadFile("localstack.out")
 
 	if err != nil {
@@ -347,8 +393,4 @@ func load() (string, error) {
 	}
 
 	return string(file), nil
-}
-
-func mergeWithTCP(port nat.Port) nat.Port {
-	return nat.Port(fmt.Sprintf("%s/tcp", port))
 }
