@@ -66,6 +66,7 @@ $ go get github.com/edermanoel94/localstack@latest
 - [ ] Create helper for aws-sdk
 - [ ] Working with all network_modes
 - [ ] Remove sleep and check services healthy
+- [ ] Add config file for working with binary
 
 ## Contributing
 
